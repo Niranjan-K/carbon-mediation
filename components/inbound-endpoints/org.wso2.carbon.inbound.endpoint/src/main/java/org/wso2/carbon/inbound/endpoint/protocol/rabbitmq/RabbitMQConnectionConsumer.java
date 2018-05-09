@@ -22,6 +22,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConsumerCancelledException;
+import com.rabbitmq.client.LongString;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.QueueingConsumer;
 
@@ -31,9 +32,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
+import java.util.TreeMap;
 
 public class RabbitMQConnectionConsumer {
     private static final Log log = LogFactory.getLog(RabbitMQConnectionConsumer.class);
@@ -301,7 +304,7 @@ public class RabbitMQConnectionConsumer {
 
         if (delivery != null) {
             AMQP.BasicProperties properties = delivery.getProperties();
-            Map<String, Object> headers = properties.getHeaders();
+            Map<String, Object> headers = extractHeaders(properties.getHeaders());
             message.setBody(delivery.getBody());
             message.setDeliveryTag(delivery.getEnvelope().getDeliveryTag());
             message.setReplyTo(properties.getReplyTo());
@@ -328,6 +331,29 @@ public class RabbitMQConnectionConsumer {
             return null;
         }
         return message;
+    }
+
+    /**
+     * Retrieves the headers from {@code AMQP.BasicProperties} and return headers Map.
+     *
+     * @param propertiesHeaders content header data
+     * @return                  Headers ({@code Map})
+     */
+    private Map<String, Object> extractHeaders(Map<String, Object> propertiesHeaders) {
+        if (propertiesHeaders != null) {
+            Map<String, Object> headers = new TreeMap<>();
+            for (Map.Entry<String, Object> headerEntry : propertiesHeaders.entrySet()) {
+                if (headerEntry.getValue() instanceof LongString) {
+                    byte[] bytes = ((LongString) headerEntry.getValue()).getBytes();
+                    String headerValue = new String(bytes, StandardCharsets.UTF_8);
+                    headers.put(headerEntry.getKey(), headerValue);
+                } else {
+                    headers.put(headerEntry.getKey(), headerEntry.getValue());
+                }
+            }
+            return headers;
+        }
+        return null;
     }
 
     private void closeConnection() {

@@ -68,6 +68,10 @@ public class RabbitMQInjectHandler {
         log.debug("Processed RabbitMQ Message ");
         MessageContext axis2MsgCtx = ((org.apache.synapse.core.axis2.Axis2MessageContext) msgCtx)
                 .getAxis2MessageContext();
+
+        // Set header from RabbitMQMessage to MessageContext
+        axis2MsgCtx.setProperty(MessageContext.TRANSPORT_HEADERS, message.getHeaders());
+
         // Determine the message builder to use
         String amqpCorrelationID = message.getCorrelationId();
         if (amqpCorrelationID != null && amqpCorrelationID.length() > 0) {
